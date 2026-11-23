@@ -1,1 +1,41 @@
-
+name: Build Magisk Module
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r26d
+    - name: Build Native Lib & Module
+      run: |
+        unzip jni.zip
+        cd jni
+        ndk-build
+        cd ..
+        
+        mkdir -p MagiskMod/system/lib64
+        cp jni/libs/arm64-v8a/libffhook.so MagiskMod/system/lib64/
+        
+        echo "id=ffbypass" > MagiskMod/module.prop
+        echo "name=FF Bypass" >> MagiskMod/module.prop
+        echo "version=v1.0" >> MagiskMod/module.prop
+        echo "versionCode=1" >> MagiskMod/module.prop
+        echo "author=ollie" >> MagiskMod/module.prop
+        echo "description=Free Fire Ghost Bypass" >> MagiskMod/module.prop
+        
+        echo "#!/system/bin/sh" > MagiskMod/post-fs-data.sh
+        echo "resetprop ro.debuggable 0" >> MagiskMod/post-fs-data.sh
+        echo "resetprop ro.secure 1" >> MagiskMod/post-fs-data.sh
+        echo "umount -l /sbin 2>/dev/null" >> MagiskMod/post-fs-data.sh
+        chmod +x MagiskMod/post-fs-data.sh
+        
+        cd MagiskMod
+        zip -r ../FFBypass-Magisk.zip *
+    - name: Upload Module
+      uses: actions/upload-artifact@v4
+      with:
+        name: FFBypass-Magisk
+        path: FFBypass-Magisk.zip
