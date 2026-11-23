@@ -1,4 +1,4 @@
-name: Build Magisk Module
+name: Build Zygisk Module
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -9,15 +9,18 @@ jobs:
       uses: nttld/setup-ndk@v1
       with:
         ndk-version: r26d
-    - name: Build Native Lib & Module
+    - name: Build Zygisk
       run: |
         unzip jni.zip
+        mkdir -p MagiskMod/zygisk MagiskMod/system/lib64
+        
         cd jni
         ndk-build
         cd ..
-        
-        mkdir -p MagiskMod/system/lib64
         cp jni/libs/arm64-v8a/libffhook.so MagiskMod/system/lib64/
+        
+        $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++ \
+          -shared -fPIC -O2 zygisk.cpp -o MagiskMod/zygisk/arm64-v8a.so -llog -ldl
         
         echo "id=ffbypass" > MagiskMod/module.prop
         echo "name=FF Bypass" >> MagiskMod/module.prop
@@ -25,12 +28,7 @@ jobs:
         echo "versionCode=1" >> MagiskMod/module.prop
         echo "author=ollie" >> MagiskMod/module.prop
         echo "description=Free Fire Ghost Bypass" >> MagiskMod/module.prop
-        
-        echo "#!/system/bin/sh" > MagiskMod/post-fs-data.sh
-        echo "resetprop ro.debuggable 0" >> MagiskMod/post-fs-data.sh
-        echo "resetprop ro.secure 1" >> MagiskMod/post-fs-data.sh
-        echo "umount -l /sbin 2>/dev/null" >> MagiskMod/post-fs-data.sh
-        chmod +x MagiskMod/post-fs-data.sh
+        echo "zygisk=1" >> MagiskMod/module.prop
         
         cd MagiskMod
         zip -r ../FFBypass-Magisk.zip *
