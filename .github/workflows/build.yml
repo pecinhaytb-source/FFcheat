@@ -10,16 +10,35 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    
     - name: Build APK
       run: |
         unzip src.zip
+        
+        # Tenta achar a pasta src de duas formas diferentes pra não dar erro
         mkdir -p app/src/main/java/com/allhack/cheats
-        cp -r src/com app/src/main/java/
+        if [ -d "src/com" ]; then
+          cp -r src/com app/src/main/java/
+        else
+          cp -r com app/src/main/java/
+        fi
+        
         cp AndroidManifest.xml app/src/main/
-        echo "sdk.dir=$ANDROID_HOME" > local.properties
-        echo "android {" > app/build.gradle
+        
+        # Aponta pro SDK que já vem instalado na máquina do GitHub
+        echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
+        
+        echo "buildscript {" > build.gradle
+        echo "    repositories { google(); mavenCentral() }" >> build.gradle
+        echo "    dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }" >> build.gradle
+        echo "}" >> build.gradle
+        echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
+        
+        echo "rootProject.name = 'FFcheat'" > settings.gradle
+        echo "include ':app'" >> settings.gradle
+        
+        echo "plugins { id 'com.android.application' }" > app/build.gradle
+        echo "android {" >> app/build.gradle
         echo "    namespace 'com.allhack.cheats'" >> app/build.gradle
         echo "    compileSdk 34" >> app/build.gradle
         echo "    defaultConfig {" >> app/build.gradle
@@ -28,9 +47,10 @@ jobs:
         echo "        targetSdk 34" >> app/build.gradle
         echo "    }" >> app/build.gradle
         echo "}" >> app/build.gradle
-        echo "include ':app'" > settings.gradle
+        
         gradle wrapper --gradle-version 8.2
         ./gradlew assembleDebug
+        
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
